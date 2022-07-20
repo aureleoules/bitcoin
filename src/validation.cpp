@@ -127,7 +127,6 @@ bool g_parallel_script_checks{false};
 bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
 
-uint256 hashAssumeValid;
 arith_uint256 nMinimumChainWork;
 
 const CBlockIndex* CChainState::FindForkInGlobalIndex(const CBlockLocator& locator) const
@@ -2026,13 +2025,13 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     }
 
     bool fScriptChecks = true;
-    if (!hashAssumeValid.IsNull()) {
+    if (!m_chainman.AssumedValidBlock().IsNull()) {
         // We've been configured with the hash of a block which has been externally verified to have a valid history.
         // A suitable default value is included with the software and updated from time to time.  Because validity
         //  relative to a piece of software is an objective fact these defaults can be easily reviewed.
         // This setting doesn't force the selection of any particular chain but makes validating some faster by
         //  effectively caching the result of part of the verification.
-        BlockMap::const_iterator  it = m_blockman.m_block_index.find(hashAssumeValid);
+        BlockMap::const_iterator it{m_blockman.m_block_index.find(m_chainman.AssumedValidBlock())};
         if (it != m_blockman.m_block_index.end()) {
             if (it->second.GetAncestor(pindex->nHeight) == pindex &&
                 m_chainman.m_best_header->GetAncestor(pindex->nHeight) == pindex &&
@@ -5113,6 +5112,20 @@ void ChainstateManager::MaybeRebalanceCaches()
                 m_total_coinstip_cache * 0.95, m_total_coinsdb_cache * 0.95);
         }
     }
+}
+
+/**
+ * Apply default chain params to nullopt members.
+ */
+static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
+{
+    if (!opts.assumed_valid_block.has_value()) opts.assumed_valid_block = opts.chainparams.GetConsensus().defaultAssumeValid;
+    return std::move(opts);
+}
+
+ChainstateManager::ChainstateManager(Options options) : m_options{Flatten(std::move(options))}
+{
+    Assert(m_options.adjusted_time_callback);
 }
 
 ChainstateManager::~ChainstateManager()
