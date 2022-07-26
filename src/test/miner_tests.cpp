@@ -38,9 +38,14 @@ struct MinerTestingSetup : public TestingSetup {
         CCoinsViewMemPool view_mempool{&m_node.chainman->ActiveChainstate().CoinsTip(), tx_mempool};
         return CheckSequenceLocksAtTip(m_node.chainman->ActiveChain().Tip(), view_mempool, tx);
     }
-    CTxMemPool MakeMempool()
+    CTxMemPool& MakeMempool()
     {
-        return CTxMemPool{MemPoolOptionsForTest(m_node)};
+        // Delete the previous mempool to ensure with valgrind that the old
+        // pointer is not accessed, when the new one should be accessed
+        // instead.
+        m_node.mempool.reset();
+        m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
+        return *m_node.mempool;
     }
     BlockAssembler AssemblerForTest(CTxMemPool& tx_mempool);
 };
@@ -95,7 +100,7 @@ static CBlockIndex CreateBlockIndex(int nHeight, CBlockIndex* active_chain_tip) 
 // to allow reusing the blockchain created in CreateNewBlock_validity.
 void MinerTestingSetup::TestPackageSelection(const CScript& scriptPubKey, const std::vector<CTransactionRef>& txFirst)
 {
-    CTxMemPool tx_mempool{MakeMempool()};
+    CTxMemPool& tx_mempool{MakeMempool()};
     LOCK(tx_mempool.cs);
     // Test the ancestor feerate transaction selection.
     TestMemPoolEntryHelper entry;
@@ -214,7 +219,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     const CAmount HIGHERFEE = 4 * COIN;
 
     {
-        CTxMemPool tx_mempool{MakeMempool()};
+        CTxMemPool& tx_mempool{MakeMempool()};
         LOCK(tx_mempool.cs);
 
         // Just to make sure we can still make simple blocks
@@ -242,7 +247,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     }
 
     {
-        CTxMemPool tx_mempool{MakeMempool()};
+        CTxMemPool& tx_mempool{MakeMempool()};
         LOCK(tx_mempool.cs);
 
         tx.vin[0].prevout.hash = txFirst[0]->GetHash();
@@ -259,7 +264,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     }
 
     {
-        CTxMemPool tx_mempool{MakeMempool()};
+        CTxMemPool& tx_mempool{MakeMempool()};
         LOCK(tx_mempool.cs);
 
         // block size > limit
@@ -283,7 +288,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     }
 
     {
-        CTxMemPool tx_mempool{MakeMempool()};
+        CTxMemPool& tx_mempool{MakeMempool()};
         LOCK(tx_mempool.cs);
 
         // orphan in tx_mempool, template creation fails
@@ -293,7 +298,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     }
 
     {
-        CTxMemPool tx_mempool{MakeMempool()};
+        CTxMemPool& tx_mempool{MakeMempool()};
         LOCK(tx_mempool.cs);
 
         // child with higher feerate than parent
@@ -314,7 +319,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     }
 
     {
-        CTxMemPool tx_mempool{MakeMempool()};
+        CTxMemPool& tx_mempool{MakeMempool()};
         LOCK(tx_mempool.cs);
 
         // coinbase in tx_mempool, template creation fails
@@ -330,7 +335,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     }
 
     {
-        CTxMemPool tx_mempool{MakeMempool()};
+        CTxMemPool& tx_mempool{MakeMempool()};
         LOCK(tx_mempool.cs);
 
         // double spend txn pair in tx_mempool, template creation fails
@@ -347,7 +352,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     }
 
     {
-        CTxMemPool tx_mempool{MakeMempool()};
+        CTxMemPool& tx_mempool{MakeMempool()};
         LOCK(tx_mempool.cs);
 
         // subsidy changing
@@ -404,7 +409,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         }
     }
 
-    CTxMemPool tx_mempool{MakeMempool()};
+    CTxMemPool& tx_mempool{MakeMempool()};
     LOCK(tx_mempool.cs);
 
     // non-final txs in mempool
@@ -516,7 +521,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
 
 void MinerTestingSetup::TestPrioritisedMining(const CScript& scriptPubKey, const std::vector<CTransactionRef>& txFirst)
 {
-    CTxMemPool tx_mempool{MakeMempool()};
+    CTxMemPool& tx_mempool{MakeMempool()};
     LOCK(tx_mempool.cs);
 
     TestMemPoolEntryHelper entry;
