@@ -124,7 +124,6 @@ GlobalMutex g_best_block_mutex;
 std::condition_variable g_best_block_cv;
 uint256 g_best_block;
 bool g_parallel_script_checks{false};
-bool fCheckBlockIndex = false;
 
 const CBlockIndex* CChainState::FindForkInGlobalIndex(const CBlockLocator& locator) const
 {
@@ -4435,7 +4434,7 @@ void CChainState::LoadExternalBlockFile(
 
 void CChainState::CheckBlockIndex()
 {
-    if (!fCheckBlockIndex) {
+    if (!m_chainman.IsCheckBlockIndex()) {
         return;
     }
 
@@ -5119,6 +5118,7 @@ void ChainstateManager::MaybeRebalanceCaches()
  */
 static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
 {
+    if (!opts.check_block_index.has_value()) opts.check_block_index = opts.chainparams.DefaultConsistencyChecks();
     if (!opts.minimum_chain_work.has_value()) opts.minimum_chain_work = UintToArith256(opts.chainparams.GetConsensus().nMinimumChainWork);
     if (!opts.assumed_valid_block.has_value()) opts.assumed_valid_block = opts.chainparams.GetConsensus().defaultAssumeValid;
     return std::move(opts);
