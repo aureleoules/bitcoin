@@ -2,9 +2,11 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <algorithm>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <interfaces/chain.h>
+#include <numeric>
 #include <policy/policy.h>
 #include <script/signingprovider.h>
 #include <util/check.h>
@@ -531,14 +533,27 @@ std::optional<SelectionResult> ChooseSelectionResult(const CWallet& wallet, cons
         results.push_back(*srd_result);
     }
 
-    if (results.size() == 0) {
+    if (results.empty()) {
         // No solution found
+        return std::nullopt;
+    }
+
+    std::vector<SelectionResult> eligible_results;
+    std::copy_if(results.begin(), results.end(), std::back_inserter(eligible_results), [coin_selection_params](const SelectionResult& result) {
+        const int weight = std::accumulate(result.GetInputSet().begin(), result.GetInputSet().end(), static_cast<int>(coin_selection_params.tx_noinputs_size * WITNESS_SCALE_FACTOR), [](int acc, const auto& coin) {
+            return acc + coin.input_bytes * WITNESS_SCALE_FACTOR;
+        });
+
+        return weight <= static_cast<int>(MAX_STANDARD_TX_WEIGHT);
+    });
+
+    if (eligible_results.empty()) {
         return std::nullopt;
     }
 
     // Choose the result with the least waste
     // If the waste is the same, choose the one which spends more inputs.
-    auto& best_result = *std::min_element(results.begin(), results.end());
+    auto& best_result = *std::min_element(eligible_results.begin(), eligible_results.end());
     return best_result;
 }
 

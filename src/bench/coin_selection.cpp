@@ -14,12 +14,12 @@
 using node::NodeContext;
 using wallet::AttemptSelection;
 using wallet::CHANGE_LOWER;
-using wallet::COutput;
-using wallet::CWallet;
-using wallet::CWalletTx;
 using wallet::CoinEligibilityFilter;
 using wallet::CoinSelectionParams;
+using wallet::COutput;
 using wallet::CreateDummyWalletDatabase;
+using wallet::CWallet;
+using wallet::CWalletTx;
 using wallet::OutputGroup;
 using wallet::SelectCoinsBnB;
 using wallet::TxStateInactive;

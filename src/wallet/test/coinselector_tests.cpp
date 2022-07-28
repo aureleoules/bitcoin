@@ -917,5 +917,168 @@ BOOST_AUTO_TEST_CASE(effective_value_test)
     BOOST_CHECK_EQUAL(output5.GetEffectiveValue(), nValue); // The effective value should be equal to the absolute value if input_bytes is -1
 }
 
+static std::optional<SelectionResult> select_coins(const CAmount& target, const CoinSelectionParams& cs_params, const CCoinControl& cc, std::function<CoinsResult(CWallet&)> coin_setup, interfaces::Chain* chain, const ArgsManager& args)
+{
+    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(chain, "", args, CreateMockWalletDatabase());
+    wallet->LoadWallet();
+    LOCK(wallet->cs_wallet);
+    wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+    wallet->SetupDescriptorScriptPubKeyMans();
+
+    auto available_coins = coin_setup(*wallet);
+
+    const auto result = SelectCoins(*wallet, available_coins, target, cc, cs_params);
+    if (result) {
+        const auto signedTxSize = 10 + 34 + 68 * result->GetInputSet().size(); // static header size + output size + inputs size (P2WPKH)
+        BOOST_CHECK_LE(signedTxSize * WITNESS_SCALE_FACTOR, MAX_STANDARD_TX_WEIGHT);
+
+        BOOST_CHECK_GE(result->GetSelectedValue(), target);
+    }
+    return result;
+}
+
+BOOST_AUTO_TEST_CASE(check_max_weight)
+{
+    const CAmount target = 49.5L * COIN;
+    CCoinControl cc;
+
+    FastRandomContext rand;
+    CoinSelectionParams cs_params{
+        rand,
+        /*change_output_size=*/34,
+        /*change_spend_size=*/68,
+        /*min_change_target=*/CENT,
+        /*effective_feerate=*/CFeeRate(0),
+        /*long_term_feerate=*/CFeeRate(0),
+        /*discard_feerate=*/CFeeRate(0),
+        /*tx_noinputs_size=*/10 + 34, // static header size + output size
+        /*avoid_partial=*/false,
+    };
+
+    auto chain{m_node.chain.get()};
+
+    {
+        // Scenario 1:
+        // The actor starts with 1x 50.0 BTC and 1515x 0.033 BTC (~100.0 BTC total) unspent outputs
+        // Then tries to spend 49.5 BTC
+        // The 50.0 BTC output should be selected, because the transaction would otherwise be too large
+
+        // Perform selection
+
+        const auto result = select_coins(
+            target, cs_params, cc, [&](CWallet& wallet) {
+                CoinsResult available_coins;
+                for (int j = 0; j < 1500; ++j) {
+                    add_coin(available_coins, wallet, CAmount(0.033 * COIN), CFeeRate(0), 144, false, 0, true);
+                }
+
+                add_coin(available_coins, wallet, CAmount(50 * COIN), CFeeRate(0), 144, false, 0, true);
+                return available_coins;
+            },
+            chain, m_args);
+
+        BOOST_CHECK(result);
+        const bool has_50_coin = std::any_of(result->GetInputSet().begin(), result->GetInputSet().end(), [](const auto& coin) {
+            return coin.GetEffectiveValue() == 50 * COIN;
+        });
+        BOOST_CHECK(has_50_coin);
+    }
+
+    {
+        // Scenario 2:
+
+        // The actor starts with 400x 0.0625 BTC and 2000x 0.025 BTC (75.0 BTC total) unspent outputs
+        // Then tries to spend 49.5 BTC
+        // A combination of coins should be selected, such that the created transaction is not too large
+
+        // Perform selection
+        const auto result = select_coins(
+            target, cs_params, cc, [&](CWallet& wallet) {
+                CoinsResult available_coins;
+                for (int j = 0; j < 400; ++j) {
+                    add_coin(available_coins, wallet, CAmount(0.0625 * COIN), CFeeRate(0), 144, false, 0, true);
+                }
+                for (int j = 0; j < 2000; ++j) {
+                    add_coin(available_coins, wallet, CAmount(0.025 * COIN), CFeeRate(0), 144, false, 0, true);
+                }
+                return available_coins;
+            },
+            chain, m_args);
+
+        const bool has_0_0625_coin = std::any_of(result->GetInputSet().begin(), result->GetInputSet().end(), [](const auto& coin) {
+            return coin.GetEffectiveValue() == 0.0625 * COIN;
+        });
+        const bool has_0_025_coin = std::any_of(result->GetInputSet().begin(), result->GetInputSet().end(), [](const auto& coin) {
+            return coin.GetEffectiveValue() == 0.025 * COIN;
+        });
+        const bool has_not_50_coin = std::any_of(result->GetInputSet().begin(), result->GetInputSet().end(), [](const auto& coin) {
+            return coin.GetEffectiveValue() != 50 * COIN;
+        });
+        BOOST_CHECK(has_0_0625_coin);
+        BOOST_CHECK(has_0_025_coin);
+        BOOST_CHECK(has_not_50_coin);
+    }
+
+    {
+        // Scenario 3 (available as RPC test):
+
+        // The actor starts with 1x 50.0 BTC, 400x 0.0625 BTC and 2000x 0.025 BTC (125.0 BTC total) unspent outputs
+        // Then tries to spend 49.5 BTC
+        // A combination of coins should be selected, such that the created transaction is not too large
+
+        // Perform selection
+        const auto result = select_coins(
+            target, cs_params, cc, [&](CWallet& wallet) {
+                CoinsResult available_coins;
+                for (int j = 0; j < 400; ++j) {
+                    add_coin(available_coins, wallet, CAmount(0.0625 * COIN), CFeeRate(0), 144, false, 0, true);
+                }
+                for (int j = 0; j < 2000; ++j) {
+                    add_coin(available_coins, wallet, CAmount(0.025 * COIN), CFeeRate(0), 144, false, 0, true);
+                }
+                add_coin(available_coins, wallet, CAmount(50 * COIN), CFeeRate(0), 144, false, 0, true);
+                return available_coins;
+            },
+            chain, m_args);
+
+        // Perform selection
+        const bool has_0_025_coin = std::any_of(result->GetInputSet().begin(), result->GetInputSet().end(), [](const auto& coin) {
+            return coin.GetEffectiveValue() == 0.025 * COIN;
+        });
+        const bool has_0_0625_coin = std::any_of(result->GetInputSet().begin(), result->GetInputSet().end(), [](const auto& coin) {
+            return coin.GetEffectiveValue() == 0.0625 * COIN;
+        });
+        const bool has_not_50_coin = std::any_of(result->GetInputSet().begin(), result->GetInputSet().end(), [](const auto& coin) {
+            return coin.GetEffectiveValue() != 50 * COIN;
+        });
+        BOOST_CHECK(has_0_025_coin);
+        BOOST_CHECK(has_0_0625_coin);
+        BOOST_CHECK(has_not_50_coin);
+    }
+
+    {
+        // Scenario 4:
+
+        // The actor starts with 1515x 0.033 BTC (49.995 BTC total) unspent outputs
+        // No results should be returned, because the transaction would be too large
+
+        // Perform selection
+        const auto result = select_coins(
+            target, cs_params, cc, [&](CWallet& wallet) {
+                CoinsResult available_coins;
+                for (int j = 0; j < 1515; ++j) {
+                    add_coin(available_coins, wallet, CAmount(0.033 * COIN), CFeeRate(0), 144, false, 0, true);
+                }
+                return available_coins;
+            },
+            chain, m_args);
+
+        // No results
+        // 1515 inputs * 68 bytes = 103,020 bytes
+        // 103,020 bytes * 4 = 412,080 weight, which is above the MAX_STANDARD_TX_WEIGHT of 400,000
+        BOOST_CHECK(!result);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 } // namespace wallet
