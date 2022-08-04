@@ -181,6 +181,11 @@ public:
 
     FlatFilePos SaveBlockToDisk(const CBlock& block, int nHeight, CChain& active_chain, const CChainParams& chainparams, const FlatFilePos* dbp);
 
+    [[nodiscard]] bool LoadingBlocks()
+    {
+        return fImporting || fReindex;
+    }
+
     /** Calculate the amount of disk space the block & undo files currently use */
     uint64_t CalculateCurrentUsage();
 
