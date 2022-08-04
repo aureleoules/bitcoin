@@ -5,6 +5,8 @@
 #ifndef BITCOIN_KERNEL_CHAINSTATEMANAGER_OPTS_H
 #define BITCOIN_KERNEL_CHAINSTATEMANAGER_OPTS_H
 
+#include <kernel/blockmanager_opts.h>
+
 #include <cstdint>
 #include <functional>
 
@@ -18,6 +20,7 @@ namespace kernel {
  * `ChainstateManager`.
  */
 struct ChainstateManagerOpts {
+    const BlockManagerOpts blockman_opts;
     const CChainParams& chainparams;
     const std::function<int64_t()> adjusted_time_callback{nullptr};
 };

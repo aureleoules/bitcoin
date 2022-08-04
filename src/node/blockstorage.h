@@ -8,6 +8,7 @@
 #include <attributes.h>
 #include <chain.h>
 #include <fs.h>
+#include <kernel/blockmanager_opts.h>
 #include <protocol.h>
 #include <sync.h>
 #include <txdb.h>
@@ -49,8 +50,6 @@ extern std::atomic_bool fReindex;
 /** Pruning-related variables and constants */
 /** True if we're running in -prune mode. */
 extern bool fPruneMode;
-/** Number of bytes of block files that we're trying to stay below. */
-extern uint64_t nPruneTarget;
 
 // Because validation code takes pointers to the map's CBlockIndex objects, if
 // we ever switch to another associative container, we need to either use a
@@ -140,6 +139,14 @@ private:
     std::unordered_map<std::string, PruneLockInfo> m_prune_locks GUARDED_BY(::cs_main);
 
 public:
+    using Options = kernel::BlockManagerOpts;
+
+    explicit BlockManager(const Options& opts)
+        : m_prune_target{opts.prune_target} {};
+
+    /** Number of bytes of block files that we're trying to stay below. */
+    const uint64_t m_prune_target;
+
     BlockMap m_block_index GUARDED_BY(cs_main);
 
     std::vector<CBlockIndex*> GetAllBlockIndices() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);

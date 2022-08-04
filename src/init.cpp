@@ -119,7 +119,6 @@ using node::ThreadImport;
 using node::VerifyLoadedChainstate;
 using node::fPruneMode;
 using node::fReindex;
-using node::nPruneTarget;
 
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;
@@ -935,24 +934,6 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
         LogPrintf("Warning: nMinimumChainWork set below default value of %s\n", chainparams.GetConsensus().nMinimumChainWork.GetHex());
     }
 
-    // block pruning; get the amount of disk space (in MiB) to allot for block & undo files
-    int64_t nPruneArg = args.GetIntArg("-prune", 0);
-    if (nPruneArg < 0) {
-        return InitError(_("Prune cannot be configured with a negative value."));
-    }
-    nPruneTarget = (uint64_t) nPruneArg * 1024 * 1024;
-    if (nPruneArg == 1) {  // manual pruning: -prune=1
-        LogPrintf("Block pruning enabled.  Use RPC call pruneblockchain(height) to manually prune block and undo files.\n");
-        nPruneTarget = std::numeric_limits<uint64_t>::max();
-        fPruneMode = true;
-    } else if (nPruneTarget) {
-        if (nPruneTarget < MIN_DISK_SPACE_FOR_BLOCK_FILES) {
-            return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."), MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
-        }
-        LogPrintf("Prune configured to target %u MiB on disk for block and undo files.\n", nPruneTarget / 1024 / 1024);
-        fPruneMode = true;
-    }
-
     nConnectTimeout = args.GetIntArg("-timeout", DEFAULT_CONNECT_TIMEOUT);
     if (nConnectTimeout <= 0) {
         nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
@@ -1353,6 +1334,24 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7: load block chain
 
+    // block pruning; get the amount of disk space (in MiB) to allot for block & undo files
+    int64_t nPruneArg = args.GetIntArg("-prune", 0);
+    if (nPruneArg < 0) {
+        return InitError(_("Prune cannot be configured with a negative value."));
+    }
+    uint64_t nPruneTarget{uint64_t(nPruneArg) * 1024 * 1024};
+    if (nPruneArg == 1) {  // manual pruning: -prune=1
+        LogPrintf("Block pruning enabled.  Use RPC call pruneblockchain(height) to manually prune block and undo files.\n");
+        nPruneTarget = std::numeric_limits<uint64_t>::max();
+        fPruneMode = true;
+    } else if (nPruneTarget) {
+        if (nPruneTarget < MIN_DISK_SPACE_FOR_BLOCK_FILES) {
+            return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."), MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
+        }
+        LogPrintf("Prune configured to target %u MiB on disk for block and undo files.\n", nPruneTarget / 1024 / 1024);
+        fPruneMode = true;
+    }
+
     fReindex = args.GetBoolArg("-reindex", false);
     bool fReindexChainState = args.GetBoolArg("-reindex-chainstate", false);
 
@@ -1392,6 +1391,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         node.mempool = std::make_unique<CTxMemPool>(mempool_opts);
 
         const ChainstateManager::Options chainman_opts{
+            .blockman_opts =
+                {
+                    .prune_target = nPruneTarget,
+                },
             .chainparams = chainparams,
             .adjusted_time_callback = GetAdjustedTime,
         };

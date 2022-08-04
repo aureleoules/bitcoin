@@ -863,7 +863,8 @@ public:
 
     explicit ChainstateManager(const Options& opts)
         : m_chainparams{opts.chainparams},
-          m_adjusted_time_callback{Assert(opts.adjusted_time_callback)} {};
+          m_adjusted_time_callback{Assert(opts.adjusted_time_callback)},
+          m_blockman{opts.blockman_opts} {};
 
     const CChainParams& GetParams() const { return m_chainparams; }
     const Consensus::Params& GetConsensus() const { return m_chainparams.GetConsensus(); }

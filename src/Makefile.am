@@ -169,6 +169,7 @@ BITCOIN_CORE_H = \
   interfaces/ipc.h \
   interfaces/node.h \
   interfaces/wallet.h \
+  kernel/blockmanager_opts.h \
   kernel/chain.h \
   kernel/chainstatemanager_opts.h \
   kernel/checks.h \
