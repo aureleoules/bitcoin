@@ -47,9 +47,6 @@ static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 
 extern std::atomic_bool fImporting;
 extern std::atomic_bool fReindex;
-/** Pruning-related variables and constants */
-/** True if we're running in -prune mode. */
-extern bool fPruneMode;
 
 // Because validation code takes pointers to the map's CBlockIndex objects, if
 // we ever switch to another associative container, we need to either use a
@@ -142,8 +139,12 @@ public:
     using Options = kernel::BlockManagerOpts;
 
     explicit BlockManager(const Options& opts)
-        : m_prune_target{opts.prune_target} {};
+        : m_prune_mode{opts.prune_mode},
+          m_prune_target{opts.prune_target} {};
 
+    /** Pruning-related variables and constants */
+    /** True if we're running in -prune mode. */
+    const bool m_prune_mode;
     /** Number of bytes of block files that we're trying to stay below. */
     const uint64_t m_prune_target;
 

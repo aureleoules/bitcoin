@@ -117,7 +117,6 @@ using node::ShouldPersistMempool;
 using node::NodeContext;
 using node::ThreadImport;
 using node::VerifyLoadedChainstate;
-using node::fPruneMode;
 using node::fReindex;
 
 static const bool DEFAULT_PROXYRANDOMIZE = true;
@@ -1335,6 +1334,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // ********************************************************* Step 7: load block chain
 
     // block pruning; get the amount of disk space (in MiB) to allot for block & undo files
+    bool fPruneMode{false};
     int64_t nPruneArg = args.GetIntArg("-prune", 0);
     if (nPruneArg < 0) {
         return InitError(_("Prune cannot be configured with a negative value."));
@@ -1393,6 +1393,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         const ChainstateManager::Options chainman_opts{
             .blockman_opts =
                 {
+                    .prune_mode = fPruneMode,
                     .prune_target = nPruneTarget,
                 },
             .chainparams = chainparams,
@@ -1405,7 +1406,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         options.mempool = Assert(node.mempool.get());
         options.reindex = node::fReindex;
         options.reindex_chainstate = fReindexChainState;
-        options.prune = node::fPruneMode;
+        options.prune = chainman.m_blockman.m_prune_mode;
         options.check_blocks = args.GetIntArg("-checkblocks", DEFAULT_CHECKBLOCKS);
         options.check_level = args.GetIntArg("-checklevel", DEFAULT_CHECKLEVEL);
         options.check_interrupt = ShutdownRequested;

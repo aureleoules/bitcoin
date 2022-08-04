@@ -75,7 +75,6 @@ using node::BlockMap;
 using node::CBlockIndexHeightOnlyComparator;
 using node::CBlockIndexWorkComparator;
 using node::fImporting;
-using node::fPruneMode;
 using node::fReindex;
 using node::ReadBlockFromDisk;
 using node::SnapshotMetadata;
@@ -2341,7 +2340,7 @@ bool CChainState::FlushStateToDisk(
 
         CoinsCacheSizeState cache_state = GetCoinsCacheSizeState();
         LOCK(m_blockman.cs_LastBlockFile);
-        if (fPruneMode && (m_blockman.m_check_for_pruning || nManualPruneHeight > 0) && !fReindex) {
+        if (m_blockman.m_prune_mode && (m_blockman.m_check_for_pruning || nManualPruneHeight > 0) && !fReindex) {
             // make sure we don't prune above any of the prune locks bestblocks
             // pruning is height-based
             int last_prune{m_chain.Height()}; // last height we can prune
@@ -3950,7 +3949,7 @@ bool CVerifyDB::VerifyDB(
         if (pindex->nHeight <= chainstate.m_chain.Height() - nCheckDepth) {
             break;
         }
-        if ((fPruneMode || is_snapshot_cs) && !(pindex->nStatus & BLOCK_HAVE_DATA)) {
+        if ((chainstate.m_chainman.m_blockman.m_prune_mode || is_snapshot_cs) && !(pindex->nStatus & BLOCK_HAVE_DATA)) {
             // If pruning or running under an assumeutxo snapshot, only go
             // back as far as we have data.
             LogPrintf("VerifyDB(): block verification stopping at height %d (pruning, no data)\n", pindex->nHeight);

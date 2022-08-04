@@ -213,6 +213,7 @@ ChainTestingSetup::~ChainTestingSetup()
 TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args)
     : ChainTestingSetup(chainName, extra_args)
 {
+    auto& chainman{*Assert(m_node.chainman)};
     // Ideally we'd move all the RPC tests to the functional testing framework
     // instead of unit tests, but for now we need these here.
     RegisterAllCoreRPCCommands(tableRPC);
@@ -223,17 +224,17 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
     options.coins_db_in_memory = true;
     options.reindex = node::fReindex;
     options.reindex_chainstate = m_args.GetBoolArg("-reindex-chainstate", false);
-    options.prune = node::fPruneMode;
+    options.prune = chainman.m_blockman.m_prune_mode;
     options.check_blocks = m_args.GetIntArg("-checkblocks", DEFAULT_CHECKBLOCKS);
     options.check_level = m_args.GetIntArg("-checklevel", DEFAULT_CHECKLEVEL);
-    auto [status, error] = LoadChainstate(*Assert(m_node.chainman), m_cache_sizes, options);
+    auto [status, error] = LoadChainstate(chainman, m_cache_sizes, options);
     assert(status == node::ChainstateLoadStatus::SUCCESS);
 
-    std::tie(status, error) = VerifyLoadedChainstate(*Assert(m_node.chainman), options);
+    std::tie(status, error) = VerifyLoadedChainstate(chainman, options);
     assert(status == node::ChainstateLoadStatus::SUCCESS);
 
     BlockValidationState state;
-    if (!m_node.chainman->ActiveChainstate().ActivateBestChain(state)) {
+    if (!chainman.ActiveChainstate().ActivateBestChain(state)) {
         throw std::runtime_error(strprintf("ActivateBestChain failed. (%s)", state.ToString()));
     }
 
@@ -244,7 +245,7 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
     m_node.banman = std::make_unique<BanMan>(m_args.GetDataDirBase() / "banlist", nullptr, DEFAULT_MISBEHAVING_BANTIME);
     m_node.connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman); // Deterministic randomness for tests.
     m_node.peerman = PeerManager::make(*m_node.connman, *m_node.addrman,
-                                       m_node.banman.get(), *m_node.chainman,
+                                       m_node.banman.get(), chainman,
                                        *m_node.mempool, false);
     {
         CConnman::Options options;

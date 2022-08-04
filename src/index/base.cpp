@@ -409,7 +409,7 @@ IndexSummary BaseIndex::GetSummary() const
 }
 
 void BaseIndex::SetBestBlockIndex(const CBlockIndex* block) {
-    assert(!node::fPruneMode || AllowPrune());
+    assert(!m_chainstate->m_blockman.m_prune_mode || AllowPrune());
 
     m_best_block_index = block;
     if (AllowPrune() && block) {

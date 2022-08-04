@@ -762,10 +762,11 @@ static RPCHelpMan pruneblockchain()
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    if (!node::fPruneMode)
-        throw JSONRPCError(RPC_MISC_ERROR, "Cannot prune blocks because node is not in prune mode.");
-
     ChainstateManager& chainman = EnsureAnyChainman(request.context);
+    if (!chainman.m_blockman.m_prune_mode) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Cannot prune blocks because node is not in prune mode.");
+    }
+
     LOCK(cs_main);
     CChainState& active_chainstate = chainman.ActiveChainstate();
     CChain& active_chain = active_chainstate.m_chain;
@@ -1249,8 +1250,8 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("initialblockdownload", active_chainstate.IsInitialBlockDownload());
     obj.pushKV("chainwork", tip.nChainWork.GetHex());
     obj.pushKV("size_on_disk", chainman.m_blockman.CalculateCurrentUsage());
-    obj.pushKV("pruned", node::fPruneMode);
-    if (node::fPruneMode) {
+    obj.pushKV("pruned", chainman.m_blockman.m_prune_mode);
+    if (chainman.m_blockman.m_prune_mode) {
         obj.pushKV("pruneheight", chainman.m_blockman.GetFirstStoredBlock(tip)->nHeight);
 
         // if 0, execution bypasses the whole if block.

@@ -12,6 +12,7 @@ namespace kernel {
  * `BlockManager::Options` due to the using-declaration in `BlockManager`.
  */
 struct BlockManagerOpts {
+    const bool prune_mode{false};
     const uint64_t prune_target{0};
 };
 
