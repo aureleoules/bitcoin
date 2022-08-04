@@ -293,7 +293,7 @@ public:
         return chainman().ActiveChainstate().IsInitialBlockDownload();
     }
     bool getReindex() override { return node::fReindex; }
-    bool getImporting() override { return node::fImporting; }
+    bool getImporting() override { return chainman().m_blockman.m_importing; }
     void setNetworkActive(bool active) override
     {
         if (m_context->connman) {

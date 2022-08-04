@@ -45,7 +45,6 @@ static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 /** The maximum size of a blk?????.dat file (since 0.8) */
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 
-extern std::atomic_bool fImporting;
 extern std::atomic_bool fReindex;
 
 // Because validation code takes pointers to the map's CBlockIndex objects, if
@@ -142,6 +141,7 @@ public:
         : m_prune_mode{opts.prune_mode},
           m_prune_target{opts.prune_target} {};
 
+    std::atomic<bool> m_importing{false};
     /** Pruning-related variables and constants */
     /** True if we're running in -prune mode. */
     const bool m_prune_mode;
@@ -183,7 +183,7 @@ public:
 
     [[nodiscard]] bool LoadingBlocks()
     {
-        return fImporting || fReindex;
+        return m_importing || fReindex;
     }
 
     /** Calculate the amount of disk space the block & undo files currently use */
