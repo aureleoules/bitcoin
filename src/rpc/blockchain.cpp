@@ -2672,19 +2672,44 @@ UniValue CreateUTXOSnapshot(
 
     afile << metadata;
 
-    COutPoint key;
-    Coin coin;
+    std::map<uint256, std::vector<std::pair<uint32_t, Coin>>> mapCoins;
     unsigned int iter{0};
+    COutPoint key;
+    uint256 last_hash;
+    Coin coin;
+    std::vector<std::pair<uint32_t, Coin>> coins;
 
+    pcursor->GetKey(key);
+    last_hash = key.hash;
     while (pcursor->Valid()) {
         if (iter % 5000 == 0) node.rpc_interruption_point();
         ++iter;
         if (pcursor->GetKey(key) && pcursor->GetValue(coin)) {
-            afile << key;
+            std::cout << key.ToString() << "\n";
+            if (key.hash == last_hash) {
+                coins.push_back(std::make_pair(key.n, coin));
+            } else {
+                afile << last_hash;
+                afile << static_cast<uint16_t>(coins.size());
+                for (auto [vout, coin] : coins) {
+                    afile << vout;
+                    afile << coin;
+                }
+                last_hash = key.hash;
+                coins.clear();
+                coins.push_back(std::make_pair(key.n, coin));
+            }
+        }
+        pcursor->Next();
+    }
+
+    if (!coins.empty()) {
+        afile << last_hash;
+        afile << static_cast<uint16_t>(coins.size());
+        for (auto [vout, coin] : coins) {
+            afile << vout;
             afile << coin;
         }
-
-        pcursor->Next();
     }
 
     afile.fclose();
