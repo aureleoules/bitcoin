@@ -38,24 +38,17 @@ public:
     std::vector<unsigned char> vchSalt;
     //! 0 = EVP_sha512()
     //! 1 = scrypt()
-    unsigned int nDerivationMethod;
-    unsigned int nDeriveIterations;
+    unsigned int nDerivationMethod{0};
+    // 25000 rounds is just under 0.1 seconds on a 1.86 GHz Pentium M
+    // ie slightly lower than the lowest hardware we need bother supporting
+    unsigned int nDeriveIterations{25000};
     //! Use this for more parameters to key derivation,
     //! such as the various parameters to scrypt
-    std::vector<unsigned char> vchOtherDerivationParameters;
+    std::vector<unsigned char> vchOtherDerivationParameters{std::vector<unsigned char>(0)};
 
     SERIALIZE_METHODS(CMasterKey, obj)
     {
         READWRITE(obj.vchCryptedKey, obj.vchSalt, obj.nDerivationMethod, obj.nDeriveIterations, obj.vchOtherDerivationParameters);
-    }
-
-    CMasterKey()
-    {
-        // 25000 rounds is just under 0.1 seconds on a 1.86 GHz Pentium M
-        // ie slightly lower than the lowest hardware we need bother supporting
-        nDeriveIterations = 25000;
-        nDerivationMethod = 0;
-        vchOtherDerivationParameters = std::vector<unsigned char>(0);
     }
 };
 
