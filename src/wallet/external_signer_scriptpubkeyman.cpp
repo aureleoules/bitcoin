@@ -50,7 +50,7 @@ ExternalSigner ExternalSignerScriptPubKeyMan::GetExternalSigner() {
     return signers[0];
 }
 
-bool ExternalSignerScriptPubKeyMan::DisplayAddress(const CScript scriptPubKey, const ExternalSigner &signer) const
+bool ExternalSignerScriptPubKeyMan::DisplayAddress(const CScript& scriptPubKey, const ExternalSigner &signer) const
 {
     // TODO: avoid the need to infer a descriptor from inside a descriptor wallet
     auto provider = GetSolvingProvider(scriptPubKey);
