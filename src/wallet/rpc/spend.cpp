@@ -1050,19 +1050,14 @@ static RPCHelpMan bumpfee_helper(std::string method_name)
         switch(res) {
             case feebumper::Result::INVALID_ADDRESS_OR_KEY:
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, errors[0].original);
-                break;
             case feebumper::Result::INVALID_REQUEST:
                 throw JSONRPCError(RPC_INVALID_REQUEST, errors[0].original);
-                break;
             case feebumper::Result::INVALID_PARAMETER:
                 throw JSONRPCError(RPC_INVALID_PARAMETER, errors[0].original);
-                break;
             case feebumper::Result::WALLET_ERROR:
                 throw JSONRPCError(RPC_WALLET_ERROR, errors[0].original);
-                break;
             default:
                 throw JSONRPCError(RPC_MISC_ERROR, errors[0].original);
-                break;
         }
     }
 
