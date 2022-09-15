@@ -284,6 +284,7 @@ class ListTransactionsTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "Negative count", self.nodes[0].listtransactions, count=-1)
         assert_raises_rpc_error(-8, "Negative from", self.nodes[0].listtransactions, skip=-1)
 
+        print('test')
 
 if __name__ == '__main__':
     ListTransactionsTest().main()
