@@ -58,7 +58,15 @@ if [[ "${RUN_TIDY}" == "true" ]]; then
   MAYBE_TOKEN="--"
 fi
 
-CI_EXEC "${MAYBE_BEAR}" "${MAYBE_TOKEN}" make "$MAKEJOBS" "$GOAL" || ( echo "Build failure. Verbose build follows." && CI_EXEC make "$GOAL" V=1 ; false )
+
+if [[ $CHECK_ALL_COMMITS_COMPILE == "true" ]]; then
+  for COMMIT in $(git rev-list ${CIRRUS_BASE_BRANCH}..); do
+    CI_EXEC git checkout $COMMIT
+    CI_EXEC "${MAYBE_BEAR}" "${MAYBE_TOKEN}" make "$MAKEJOBS" "$GOAL" || ( echo "Build failure. Verbose build follows." && CI_EXEC make "$GOAL" V=1 ; false )
+  done
+else
+  CI_EXEC "${MAYBE_BEAR}" "${MAYBE_TOKEN}" make "$MAKEJOBS" "$GOAL" || ( echo "Build failure. Verbose build follows." && CI_EXEC make "$GOAL" V=1 ; false )
+fi
 
 CI_EXEC "${PRINT_CCACHE_STATISTICS}"
 CI_EXEC du -sh "${DEPENDS_DIR}"/*/

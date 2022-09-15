@@ -348,3 +348,17 @@ task:
   env:
     << : *CIRRUS_EPHEMERAL_WORKER_TEMPLATE_ENV
     FILE_ENV: "./ci/test/00_setup_env_android.sh"
+
+# check all commits compile individually
+task:
+  name: 'check-commits-compile'
+  << : *BASE_TEMPLATE
+  depends_sources_cache:
+    folder: "depends/sources"
+    fingerprint_script: git rev-list -1 HEAD ./depends
+  << : *MAIN_TEMPLATE
+  container:
+    image: ubuntu:focal
+  env:
+    << : *CIRRUS_EPHEMERAL_WORKER_TEMPLATE_ENV
+    FILE_ENV: "./ci/test/00_setup_env_native_check_commits.sh"
