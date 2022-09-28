@@ -232,7 +232,7 @@ namespace {
 std::shared_ptr<CWallet> LoadWalletInternal(WalletContext& context, const std::string& name, std::optional<bool> load_on_start, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error, std::vector<bilingual_str>& warnings)
 {
     try {
-        std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(name, options, status, error);
+        std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(context, name, options, status, error);
         if (!database) {
             error = Untranslated("Wallet file verification failed.") + Untranslated(" ") + error;
             return nullptr;
@@ -312,7 +312,7 @@ std::shared_ptr<CWallet> CreateWallet(WalletContext& context, const std::string&
     }
 
     // Wallet::Verify will check if we're trying to create a wallet with a duplicate name.
-    std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(name, options, status, error);
+    std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(context, name, options, status, error);
     if (!database) {
         error = Untranslated("Wallet file verification failed.") + Untranslated(" ") + error;
         status = DatabaseStatus::FAILED_VERIFY;
@@ -2763,7 +2763,7 @@ bool CWallet::SetAddressReceiveRequest(WalletBatch& batch, const CTxDestination&
     return true;
 }
 
-std::unique_ptr<WalletDatabase> MakeWalletDatabase(const std::string& name, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error_string)
+std::unique_ptr<WalletDatabase> MakeWalletDatabase(WalletContext& context, const std::string& name, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error_string)
 {
     // Do some checking on wallet path. It should be either a:
     //
@@ -2784,6 +2784,20 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(const std::string& name, cons
         status = DatabaseStatus::FAILED_BAD_PATH;
         return nullptr;
     }
+
+    {
+        LOCK(context.wallets_mutex);
+        if (std::any_of(context.wallets.begin(), context.wallets.end(), [&wallet_path](const auto& wallet) {
+                // fs::equivalent alternative
+                // return SQLiteDataFile(wallet_path) == wallet->GetDatabase().Filename();
+                return fs::absolute(fs::PathFromString(wallet->GetDatabase().Filename())) == fs::absolute(SQLiteDataFile(wallet_path));
+            })) {
+            error_string = Untranslated(strprintf("Wallet \"%s\" is already loaded.", name));
+            status = DatabaseStatus::FAILED_ALREADY_LOADED;
+            return nullptr;
+        }
+    }
+
     return MakeDatabase(wallet_path, options, status, error_string);
 }
 
@@ -4051,7 +4065,7 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(std::shared_ptr<CWallet>
     DatabaseOptions options;
     options.require_existing = true;
     DatabaseStatus status;
-    std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(wallet_name, options, status, error);
+    std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(context, wallet_name, options, status, error);
     if (!database) {
         return util::Error{Untranslated("Wallet file verification failed.") + Untranslated(" ") + error};
     }

@@ -50,7 +50,7 @@ static const std::shared_ptr<CWallet> TestLoadWallet(WalletContext& context)
     DatabaseStatus status;
     bilingual_str error;
     std::vector<bilingual_str> warnings;
-    auto database = MakeWalletDatabase("", options, status, error);
+    auto database = MakeWalletDatabase(context, "", options, status, error);
     auto wallet = CWallet::Create(context, "", std::move(database), options.create_flags, error, warnings);
     NotifyWalletLoaded(context, wallet);
     return wallet;

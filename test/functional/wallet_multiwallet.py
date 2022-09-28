@@ -304,9 +304,9 @@ class MultiWalletTest(BitcoinTestFramework):
         # Fail to load duplicate wallets
         path = os.path.join(self.options.tmpdir, "node0", "regtest", "wallets", "w1", "wallet.dat")
         if self.options.descriptors:
-            assert_raises_rpc_error(-4, f"Wallet file verification failed. SQLiteDatabase: Unable to obtain an exclusive lock on the database, is it being used by another instance of {self.config['environment']['PACKAGE_NAME']}?", self.nodes[0].loadwallet, wallet_names[0])
+            assert_raises_rpc_error(-35, f"Wallet file verification failed. Wallet \"{wallet_names[0]}\" is already loaded.", self.nodes[0].loadwallet, wallet_names[0])
         else:
-            assert_raises_rpc_error(-35, "Wallet file verification failed. Refusing to load database. Data file '{}' is already loaded.".format(path), self.nodes[0].loadwallet, wallet_names[0])
+            assert_raises_rpc_error(-35, f"Wallet file verification failed. Wallet \"{wallet_names[0]}\" is already loaded.", self.nodes[0].loadwallet, wallet_names[0])
 
             # This tests the default wallet that BDB makes, so SQLite wallet doesn't need to test this
             # Fail to load duplicate wallets by different ways (directory and filepath)
@@ -330,9 +330,13 @@ class MultiWalletTest(BitcoinTestFramework):
 
         self.log.info("Test dynamic wallet creation.")
 
-        # Fail to create a wallet if it already exists.
+        # Fail to create a wallet if it already exists and is loaded
+        assert_raises_rpc_error(-4, "Wallet file verification failed. Wallet \"w2\" is already loaded.", self.nodes[0].createwallet, 'w2')
+        self.nodes[0].unloadwallet('w2')
+        # Fail to create a wallet if it already exists and is not loaded
         path = os.path.join(self.options.tmpdir, "node0", "regtest", "wallets", "w2")
         assert_raises_rpc_error(-4, "Failed to create database path '{}'. Database already exists.".format(path), self.nodes[0].createwallet, 'w2')
+        self.nodes[0].loadwallet('w2')
 
         # Successfully create a wallet with a new name
         loadwallet_name = self.nodes[0].createwallet('w9')

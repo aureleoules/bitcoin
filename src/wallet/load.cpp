@@ -61,7 +61,7 @@ bool VerifyWallets(WalletContext& context)
         bilingual_str error_string;
         options.require_existing = true;
         options.verify = false;
-        if (MakeWalletDatabase("", options, status, error_string)) {
+        if (MakeWalletDatabase(context, "", options, status, error_string)) {
             util::SettingsValue wallets(util::SettingsValue::VARR);
             wallets.push_back(""); // Default wallet name is ""
             // Pass write=false because no need to write file and probably
@@ -89,7 +89,7 @@ bool VerifyWallets(WalletContext& context)
         options.require_existing = true;
         options.verify = true;
         bilingual_str error_string;
-        if (!MakeWalletDatabase(wallet_file, options, status, error_string)) {
+        if (!MakeWalletDatabase(context, wallet_file, options, status, error_string)) {
             if (status == DatabaseStatus::FAILED_NOT_FOUND) {
                 chain.initWarning(Untranslated(strprintf("Skipping -wallet path that doesn't exist. %s", error_string.original)));
             } else {
@@ -119,7 +119,7 @@ bool LoadWallets(WalletContext& context)
             options.verify = false; // No need to verify, assuming verified earlier in VerifyWallets()
             bilingual_str error;
             std::vector<bilingual_str> warnings;
-            std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(name, options, status, error);
+            std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(context, name, options, status, error);
             if (!database && status == DatabaseStatus::FAILED_NOT_FOUND) {
                 continue;
             }
