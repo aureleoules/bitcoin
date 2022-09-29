@@ -409,12 +409,7 @@ CAmount GenerateChangeTarget(const CAmount payment_value, const CAmount change_f
 void SelectionResult::ComputeAndSetWaste(const CAmount min_viable_change, const CAmount change_cost, const CAmount change_fee)
 {
     const CAmount change = GetChange(min_viable_change, change_fee);
-
-    if (change > 0) {
-        m_waste = GetSelectionWaste(m_selected_inputs, change_cost, m_target, m_use_effective);
-    } else {
-        m_waste = GetSelectionWaste(m_selected_inputs, 0, m_target, m_use_effective);
-    }
+    m_waste = GetSelectionWaste(m_selected_inputs, change ? change_cost : 0, m_target, m_use_effective);
 }
 
 CAmount SelectionResult::GetWaste() const

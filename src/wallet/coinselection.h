@@ -344,6 +344,8 @@ public:
     CAmount GetTarget() const { return m_target; }
 
     SelectionAlgorithm GetAlgo() const { return m_algo; }
+
+    bool UseEffectiveValue() const { return m_use_effective; }
 };
 
 std::optional<SelectionResult> SelectCoinsBnB(std::vector<OutputGroup>& utxo_pool, const CAmount& selection_target, const CAmount& cost_of_change);
