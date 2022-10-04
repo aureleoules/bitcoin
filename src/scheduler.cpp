@@ -32,10 +32,8 @@ void CScheduler::serviceQueue()
     // is called.
     while (!shouldStop()) {
         try {
-            while (!shouldStop() && taskQueue.empty()) {
-                // Wait until there is something to do.
-                newTaskScheduled.wait(lock);
-            }
+            // Wait until there is something to do.
+            newTaskScheduled.wait(lock, [this] { return shouldStop() || !taskQueue.empty(); });
 
             // Wait until either there is a new task, or until
             // the time of the first item on the queue:
