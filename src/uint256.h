@@ -63,12 +63,11 @@ public:
     constexpr const unsigned char* data() const { return m_data.data(); }
     constexpr unsigned char* data() { return m_data.data(); }
 
-    constexpr unsigned char* begin() { return m_data.begin();}
-    constexpr unsigned char* end() { return m_data.end(); }
+    constexpr unsigned char* begin() { return m_data.data(); }
+    constexpr unsigned char* end() { return m_data.data() + WIDTH; }
 
-    constexpr const unsigned char* begin() const { return m_data.begin(); }
-
-    constexpr const unsigned char* end() const { return m_data.end(); }
+    constexpr const unsigned char* begin() const { return m_data.data(); }
+    constexpr const unsigned char* end() const { return m_data.data() + WIDTH; }
 
     static constexpr unsigned int size() { return WIDTH; }
 
