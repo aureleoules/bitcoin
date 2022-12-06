@@ -2272,11 +2272,8 @@ static bool CheckBlockFilterMatches(BlockManager& blockman, const CBlockIndex* p
     CBlock block;
     CBlockUndo block_undo;
 
-    {
-        LOCK(cs_main);
-        block = GetBlockChecked(blockman, pindex);
-        block_undo = GetUndoChecked(blockman, pindex);
-    }
+    block = GetBlockChecked(blockman, pindex);
+    block_undo = GetUndoChecked(blockman, pindex);
 
     for (const auto& needle : needles) {
         const auto script{CScript(needle.begin(), needle.end())};
