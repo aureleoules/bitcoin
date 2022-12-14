@@ -8,7 +8,9 @@ WARNING:
 This test uses 4GB of disk space.
 This test takes 30 mins or more (up to 2 hours)
 """
+from multiprocessing.dummy import Process
 import os
+import time
 
 from test_framework.blocktools import create_coinbase
 from test_framework.messages import CBlock
@@ -356,125 +358,136 @@ class PruneTest(BitcoinTestFramework):
         self.log.info("Success")
 
     def wallet_test(self):
-        # check that the pruning node's wallet is still in good shape
-        self.log.info("Stop and start pruning node to trigger wallet rescan")
-        self.restart_node(2, extra_args=["-prune=550"])
-        self.log.info("Success")
+        # # check that the pruning node's wallet is still in good shape
+        # self.log.info("Stop and start pruning node to trigger wallet rescan")
+        # self.restart_node(2, extra_args=["-prune=550"])
+        # self.log.info("Success")
 
-        # check that wallet loads successfully when restarting a pruned node after IBD.
-        # this was reported to fail in #7494.
-        self.log.info("Syncing node 5 to test wallet")
-        self.connect_nodes(0, 5)
-        nds = [self.nodes[0], self.nodes[5]]
-        self.sync_blocks(nds, wait=5, timeout=300)
-        self.restart_node(5, extra_args=["-prune=550"]) # restart to trigger rescan
-        self.log.info("Success")
+        # # check that wallet loads successfully when restarting a pruned node after IBD.
+        # # this was reported to fail in #7494.
+        # self.log.info("Syncing node 5 to test wallet")
+        # self.connect_nodes(0, 5)
+        # nds = [self.nodes[0], self.nodes[5]]
+        # self.sync_blocks(nds, wait=5, timeout=300)
+        # self.restart_node(5, extra_args=["-prune=550"]) # restart to trigger rescan
+        # self.log.info("Success")
+
+        def run_rescan():
+            print("Rescanning..")
+            startTime = time.time()
+            self.nodes[0].rescanblockchain()
+            self.log.info("Rescan took %d seconds", time.time() - startTime)
+
+        print("Testing wallet rescan")
+        Process(target=run_rescan).start()
+        # unloadwallet
+        assert_raises_rpc_error(-4, "Wallet is currently rescanning. Abort existing rescan or wait.", self.nodes[0].unloadwallet, '')
 
     def run_test(self):
         self.log.info("Warning! This test requires 4GB of disk space")
 
         self.log.info("Mining a big blockchain of 995 blocks")
         self.create_big_chain()
-        # Chain diagram key:
-        # *   blocks on main chain
-        # +,&,$,@ blocks on other forks
-        # X   invalidated block
-        # N1  Node 1
-        #
-        # Start by mining a simple chain that all nodes have
-        # N0=N1=N2 **...*(995)
+        # # Chain diagram key:
+        # # *   blocks on main chain
+        # # +,&,$,@ blocks on other forks
+        # # X   invalidated block
+        # # N1  Node 1
+        # #
+        # # Start by mining a simple chain that all nodes have
+        # # N0=N1=N2 **...*(995)
 
-        # stop manual-pruning node with 995 blocks
-        self.stop_node(3)
-        self.stop_node(4)
+        # # stop manual-pruning node with 995 blocks
+        # self.stop_node(3)
+        # self.stop_node(4)
 
-        self.log.info("Check that we haven't started pruning yet because we're below PruneAfterHeight")
-        self.test_height_min()
-        # Extend this chain past the PruneAfterHeight
-        # N0=N1=N2 **...*(1020)
+        # self.log.info("Check that we haven't started pruning yet because we're below PruneAfterHeight")
+        # self.test_height_min()
+        # # Extend this chain past the PruneAfterHeight
+        # # N0=N1=N2 **...*(1020)
 
-        self.log.info("Check that we'll exceed disk space target if we have a very high stale block rate")
-        self.create_chain_with_staleblocks()
-        # Disconnect N0
-        # And mine a 24 block chain on N1 and a separate 25 block chain on N0
-        # N1=N2 **...*+...+(1044)
-        # N0    **...**...**(1045)
-        #
-        # reconnect nodes causing reorg on N1 and N2
-        # N1=N2 **...*(1020) *...**(1045)
-        #                   \
-        #                    +...+(1044)
-        #
-        # repeat this process until you have 12 stale forks hanging off the
-        # main chain on N1 and N2
-        # N0    *************************...***************************(1320)
-        #
-        # N1=N2 **...*(1020) *...**(1045) *..         ..**(1295) *...**(1320)
-        #                   \            \                      \
-        #                    +...+(1044)  &..                    $...$(1319)
+        # self.log.info("Check that we'll exceed disk space target if we have a very high stale block rate")
+        # self.create_chain_with_staleblocks()
+        # # Disconnect N0
+        # # And mine a 24 block chain on N1 and a separate 25 block chain on N0
+        # # N1=N2 **...*+...+(1044)
+        # # N0    **...**...**(1045)
+        # #
+        # # reconnect nodes causing reorg on N1 and N2
+        # # N1=N2 **...*(1020) *...**(1045)
+        # #                   \
+        # #                    +...+(1044)
+        # #
+        # # repeat this process until you have 12 stale forks hanging off the
+        # # main chain on N1 and N2
+        # # N0    *************************...***************************(1320)
+        # #
+        # # N1=N2 **...*(1020) *...**(1045) *..         ..**(1295) *...**(1320)
+        # #                   \            \                      \
+        # #                    +...+(1044)  &..                    $...$(1319)
 
-        # Save some current chain state for later use
-        self.mainchainheight = self.nodes[2].getblockcount()  # 1320
-        self.mainchainhash2 = self.nodes[2].getblockhash(self.mainchainheight)
+        # # Save some current chain state for later use
+        # self.mainchainheight = self.nodes[2].getblockcount()  # 1320
+        # self.mainchainhash2 = self.nodes[2].getblockhash(self.mainchainheight)
 
-        self.log.info("Check that we can survive a 288 block reorg still")
-        self.reorg_test()  # (1033, )
-        # Now create a 288 block reorg by mining a longer chain on N1
-        # First disconnect N1
-        # Then invalidate 1033 on main chain and 1032 on fork so height is 1032 on main chain
-        # N1   **...*(1020) **...**(1032)X..
-        #                  \
-        #                   ++...+(1031)X..
-        #
-        # Now mine 300 more blocks on N1
-        # N1    **...*(1020) **...**(1032) @@...@(1332)
-        #                 \               \
-        #                  \               X...
-        #                   \                 \
-        #                    ++...+(1031)X..   ..
-        #
-        # Reconnect nodes and mine 220 more blocks on N1
-        # N1    **...*(1020) **...**(1032) @@...@@@(1552)
-        #                 \               \
-        #                  \               X...
-        #                   \                 \
-        #                    ++...+(1031)X..   ..
-        #
-        # N2    **...*(1020) **...**(1032) @@...@@@(1552)
-        #                 \               \
-        #                  \               *...**(1320)
-        #                   \                 \
-        #                    ++...++(1044)     ..
-        #
-        # N0    ********************(1032) @@...@@@(1552)
-        #                                 \
-        #                                  *...**(1320)
+        # self.log.info("Check that we can survive a 288 block reorg still")
+        # self.reorg_test()  # (1033, )
+        # # Now create a 288 block reorg by mining a longer chain on N1
+        # # First disconnect N1
+        # # Then invalidate 1033 on main chain and 1032 on fork so height is 1032 on main chain
+        # # N1   **...*(1020) **...**(1032)X..
+        # #                  \
+        # #                   ++...+(1031)X..
+        # #
+        # # Now mine 300 more blocks on N1
+        # # N1    **...*(1020) **...**(1032) @@...@(1332)
+        # #                 \               \
+        # #                  \               X...
+        # #                   \                 \
+        # #                    ++...+(1031)X..   ..
+        # #
+        # # Reconnect nodes and mine 220 more blocks on N1
+        # # N1    **...*(1020) **...**(1032) @@...@@@(1552)
+        # #                 \               \
+        # #                  \               X...
+        # #                   \                 \
+        # #                    ++...+(1031)X..   ..
+        # #
+        # # N2    **...*(1020) **...**(1032) @@...@@@(1552)
+        # #                 \               \
+        # #                  \               *...**(1320)
+        # #                   \                 \
+        # #                    ++...++(1044)     ..
+        # #
+        # # N0    ********************(1032) @@...@@@(1552)
+        # #                                 \
+        # #                                  *...**(1320)
 
-        self.log.info("Test that we can rerequest a block we previously pruned if needed for a reorg")
-        self.reorg_back()
-        # Verify that N2 still has block 1033 on current chain (@), but not on main chain (*)
-        # Invalidate 1033 on current chain (@) on N2 and we should be able to reorg to
-        # original main chain (*), but will require redownload of some blocks
-        # In order to have a peer we think we can download from, must also perform this invalidation
-        # on N0 and mine a new longest chain to trigger.
-        # Final result:
-        # N0    ********************(1032) **...****(1553)
-        #                                 \
-        #                                  X@...@@@(1552)
-        #
-        # N2    **...*(1020) **...**(1032) **...****(1553)
-        #                 \               \
-        #                  \               X@...@@@(1552)
-        #                   \
-        #                    +..
-        #
-        # N1 doesn't change because 1033 on main chain (*) is invalid
+        # self.log.info("Test that we can rerequest a block we previously pruned if needed for a reorg")
+        # self.reorg_back()
+        # # Verify that N2 still has block 1033 on current chain (@), but not on main chain (*)
+        # # Invalidate 1033 on current chain (@) on N2 and we should be able to reorg to
+        # # original main chain (*), but will require redownload of some blocks
+        # # In order to have a peer we think we can download from, must also perform this invalidation
+        # # on N0 and mine a new longest chain to trigger.
+        # # Final result:
+        # # N0    ********************(1032) **...****(1553)
+        # #                                 \
+        # #                                  X@...@@@(1552)
+        # #
+        # # N2    **...*(1020) **...**(1032) **...****(1553)
+        # #                 \               \
+        # #                  \               X@...@@@(1552)
+        # #                   \
+        # #                    +..
+        # #
+        # # N1 doesn't change because 1033 on main chain (*) is invalid
 
-        self.log.info("Test manual pruning with block indices")
-        self.manual_test(3, use_timestamp=False)
+        # self.log.info("Test manual pruning with block indices")
+        # self.manual_test(3, use_timestamp=False)
 
-        self.log.info("Test manual pruning with timestamps")
-        self.manual_test(4, use_timestamp=True)
+        # self.log.info("Test manual pruning with timestamps")
+        # self.manual_test(4, use_timestamp=True)
 
         if self.is_wallet_compiled():
             self.log.info("Test wallet re-scan")
