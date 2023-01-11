@@ -8,9 +8,10 @@
 #include <qt/addresstablemodel.h>
 #include <qt/guiutil.h>
 
+#include <wallet/wallet.h>
+
 #include <QDataWidgetMapper>
 #include <QMessageBox>
-
 
 EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
     QDialog(parent, GUIUtil::dialog_flags),
@@ -141,7 +142,7 @@ QString EditAddressDialog::getDuplicateAddressWarning() const
     QString existing_label = model->labelForAddress(dup_address);
     QString existing_purpose = model->purposeForAddress(dup_address);
 
-    if (existing_purpose == "receive" &&
+    if (existing_purpose == wallet::AddressBookPurposes::RECEIVE &&
             (mode == NewSendingAddress || mode == EditSendingAddress)) {
         return tr(
             "Address \"%1\" already exists as a receiving address with label "
