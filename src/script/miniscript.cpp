@@ -23,6 +23,14 @@ bool IsTapscript(MiniscriptContext ms_ctx)
 
 namespace internal {
 
+uint32_t MaxScriptSize(MiniscriptContext ms_ctx)
+{
+    if (IsTapscript(ms_ctx)) {
+        return MAX_STANDARD_TX_WEIGHT - (1 + MAX_TAPMINISCRIPT_STACK_ELEM_SIZE) * MAX_STACK_SIZE - TAPROOT_CONTROL_MAX_SIZE;
+    }
+    return MAX_STANDARD_P2WSH_SCRIPT_SIZE;
+}
+
 Type SanitizeType(Type e) {
     int num_types = (e << "K"_mst) + (e << "V"_mst) + (e << "B"_mst) + (e << "W"_mst);
     if (num_types == 0) return ""_mst; // No valid type, don't care about the rest
