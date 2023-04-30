@@ -104,3 +104,9 @@ if [ -z "$DANGER_RUN_CI_ON_HOST" ]; then
   echo "Stop and remove CI container by ID"
   docker container kill "${CI_CONTAINER_ID}"
 fi
+
+if [ "$RUN_COVERAGE" = "true" ]; then
+  CI_EXEC make cov
+  CI_EXEC geninfo . -b src -o coverage.info
+  CI_EXEC codecov
+fi
